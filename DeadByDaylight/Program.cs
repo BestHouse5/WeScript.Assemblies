@@ -58,6 +58,11 @@ namespace DeadByDaylight
                 public static readonly MenuColor MiscColor = new MenuColor("misccolor", "Draw Text Color", new SharpDX.Color(255, 255, 255, 100));
                 //public static readonly MenuSlider OffsetGuesser = new MenuSlider("ofsgues", "Guess the offset", 10, 1, 250);
             }
+
+            public static class MiscComponent
+            {
+                public static readonly MenuBool AutoSkillCheck = new MenuBool("autoskillcheck", "Auto Skill Check (+Bonus)", true);
+            }
         }
 
         public static void InitializeMenu()
@@ -74,6 +79,11 @@ namespace DeadByDaylight
                 Components.VisualsComponent.DrawMiscInfo,
                 Components.VisualsComponent.MiscColor,
                 //Components.VisualsComponent.OffsetGuesser,
+            };
+			
+			MiscMenu = new Menu("miscmenu", "Misc Menu")
+            {
+                Components.MiscComponent.AutoSkillCheck
             };
 
 
@@ -214,34 +224,78 @@ namespace DeadByDaylight
             if (!Components.MainAssemblyToggle.Enabled) return; //main menu boolean to toggle the cheat on or off
 
 
-            var UWorld = Memory.ZwReadPointer(processHandle, GWorldPtr, isWow64Process); //48 8B 1D ?? ?? ?? ?? 48 85 DB 74 3B 41 || mov rbx,[DeadByDaylight-Win64-Shipping.exe+5A29158]
-            if (UWorld != IntPtr.Zero)
+            var myPos = new Vector3();
+            var USkillCheck = IntPtr.Zero;
+            var UWorld = Memory.ZwReadPointer(processHandle, (IntPtr)GameBase.ToInt64() + 0x6164908, isWow64Process); //48 8B 1D ?? ?? ?? ?? 48 85 DB 74 3B 41 || mov rbx,[DeadByDaylight-Win64-Shipping.exe+5A29158]
+            try
             {
-                var UGameInstance = Memory.ZwReadPointer(processHandle, (IntPtr)UWorld.ToInt64() + 0x170, isWow64Process);
-                if (UGameInstance != IntPtr.Zero)
+                if (UWorld != IntPtr.Zero)
                 {
-                    var localPlayerArray = Memory.ZwReadPointer(processHandle, (IntPtr)UGameInstance.ToInt64() + 0x40, isWow64Process);
-                    if (localPlayerArray != IntPtr.Zero)
+                    var UGameInstance = Memory.ZwReadPointer(processHandle, (IntPtr)UWorld.ToInt64() + 0x170, isWow64Process);
+                    if (UGameInstance != IntPtr.Zero)
                     {
-                        var ULocalPlayer = Memory.ZwReadPointer(processHandle, localPlayerArray, isWow64Process);
-                        if (ULocalPlayer != IntPtr.Zero)
+                        var localPlayerArray = Memory.ZwReadPointer(processHandle, (IntPtr)UGameInstance.ToInt64() + 0x40, isWow64Process);
+                        if (localPlayerArray != IntPtr.Zero)
                         {
-                            var APlayerController = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayer.ToInt64() + 0x38, isWow64Process);
-                            if (APlayerController != IntPtr.Zero)
+                            var ULocalPlayer = Memory.ZwReadPointer(processHandle, localPlayerArray, isWow64Process);
+                            if (ULocalPlayer != IntPtr.Zero)
                             {
-                                var APlayerCameraManager = Memory.ZwReadPointer(processHandle, (IntPtr)APlayerController.ToInt64() + 0x3E0, isWow64Process);
-                                if (APlayerCameraManager != IntPtr.Zero)
+                                var ULocalPlayerControler = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayer.ToInt64() + 0x0038, isWow64Process);
+                                if (ULocalPlayerControler != IntPtr.Zero)
                                 {
-                                    //Console.WriteLine($"APlayerCameraManager: {APlayerCameraManager.ToString("X")}");
-                                    FMinimalViewInfo_Location = Memory.ZwReadVector3(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x0010);
-                                    FMinimalViewInfo_Rotation = Memory.ZwReadVector3(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x001C);
-                                    FMinimalViewInfo_FOV = Memory.ZwReadFloat(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x0028);
-                                    //Console.WriteLine($"Loc: {FMinimalViewInfo_Location.ToString()} Rot: {FMinimalViewInfo_Rotation.ToString()} FOV: {FMinimalViewInfo_FOV.ToString()}");
+                                    var ULocalPlayerPawn = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayerControler.ToInt64() + 0x0378, isWow64Process);
+                                    if (ULocalPlayerPawn != IntPtr.Zero)
+                                    {
+                                        var UInteractionHandler = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayerPawn.ToInt64() + 0x0BF0, isWow64Process);
+
+                                        if (UInteractionHandler != IntPtr.Zero)
+                                        {
+                                            USkillCheck = Memory.ZwReadPointer(processHandle, (IntPtr)UInteractionHandler.ToInt64() + 0x0278, isWow64Process);
+                                        }
+                                        var ULocalRoot = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayerPawn.ToInt64() + 0x0168, isWow64Process);
+                                        if (ULocalRoot != IntPtr.Zero)
+                                        {
+                                            myPos = Memory.ZwReadVector3(processHandle, (IntPtr)ULocalRoot.ToInt64() + 0x017C);
+                                        }
+                                    }
+                                    var APlayerCameraManager = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayerControler.ToInt64() + 0x3E0, isWow64Process);
+                                    if (APlayerCameraManager != IntPtr.Zero)
+                                    {
+                                        FMinimalViewInfo_Location = Memory.ZwReadVector3(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x0010);
+                                        FMinimalViewInfo_Rotation = Memory.ZwReadVector3(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x001C);
+                                        FMinimalViewInfo_FOV = Memory.ZwReadFloat(processHandle, (IntPtr)APlayerCameraManager.ToInt64() + 0x1A30 + 0x0028);
+                                    }
+                                }
+                                //var CameraPtr = Memory.ZwReadPointer(processHandle, (IntPtr)ULocalPlayer.ToInt64() + 0xB8, isWow64Process);
+                                //if (CameraPtr != IntPtr.Zero)
+                                //{
+                                //    viewProj = Memory.ZwReadMatrix(processHandle, (IntPtr)(CameraPtr.ToInt64() + 0x1FC));
+                                //}
+                            }
+                        }
+                    }
+                    if (Components.MiscComponent.AutoSkillCheck.Enabled)
+                    {
+                        if (USkillCheck != IntPtr.Zero)
+                        {
+                            var isDisplayed = Memory.ZwReadBool(processHandle,
+                                (IntPtr)USkillCheck.ToInt64() + 0x0308);
+                            if (isDisplayed && LastSpacePressedDT.AddMilliseconds(200) <
+                                DateTime.Now)
+                            {
+                                var currentProgress = Memory.ZwReadFloat(processHandle,
+                                    (IntPtr)USkillCheck.ToInt64() + 0x02A0);
+                                var startSuccessZone = Memory.ZwReadFloat(processHandle,
+                                    (IntPtr)USkillCheck.ToInt64() + 0x0270);
+
+                                if (currentProgress > startSuccessZone)
+                                {
+                                    LastSpacePressedDT = DateTime.Now;
+                                    Input.KeyPress(VirtualKeyCode.Space);
                                 }
                             }
                         }
                     }
-                }
                 var ULevel = Memory.ZwReadPointer(processHandle, (IntPtr)UWorld.ToInt64() + 0x38, isWow64Process);
                 if (ULevel != IntPtr.Zero)
                 {
